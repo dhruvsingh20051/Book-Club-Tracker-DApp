@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Club Tracker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.8.1/web3.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-4xl font-bold mb-8 text-center text-gray-800">Book Club Tracker</h1>
+
+        <!-- Connect Wallet Section -->
+        <div class="mb-8 text-center">
+            <button id="connectWallet" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600">
+                Connect Wallet
+            </button>
+            <p id="walletAddress" class="mt-2 text-gray-600"></p>
+        </div>
+
+        <!-- Add Book Form -->
+        <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+            <h2 class="text-2xl font-semibold mb-4">Add New Book</h2>
+            <div class="space-y-4">
+                <input type="text" id="bookTitle" placeholder="Book Title" 
+                    class="w-full p-2 border rounded">
+                <input type="text" id="bookAuthor" placeholder="Author Name" 
+                    class="w-full p-2 border rounded">
+                <button id="addBookBtn" class="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600">
+                    Add Book
+                </button>
+            </div>
+        </div>
+
+        <!-- Add Review Form -->
+        <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+            <h2 class="text-2xl font-semibold mb-4">Add Review</h2>
+            <div class="space-y-4">
+                <select id="bookSelect" class="w-full p-2 border rounded">
+                    <option value="">Select a book</option>
+                </select>
+                <div class="flex space-x-4">
+                    <label>Rating:</label>
+                    <select id="rating" class="p-2 border rounded">
+                        <option value="1">1 Star</option>
+                        <option value="2">2 Stars</option>
+                        <option value="3">3 Stars</option>
+                        <option value="4">4 Stars</option>
+                        <option value="5">5 Stars</option>
+                    </select>
+                </div>
+                <textarea id="reviewComment" placeholder="Write your review..." 
+                    class="w-full p-2 border rounded h-32"></textarea>
+                <button id="addReviewBtn" class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600">
+                    Submit Review
+                </button>
+            </div>
+        </div>
+
+        <!-- Reading Log Form -->
+        <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+            <h2 class="text-2xl font-semibold mb-4">Add Reading Log</h2>
+            <div class="space-y-4">
+                <select id="logBookSelect" class="w-full p-2 border rounded">
+                    <option value="">Select a book</option>
+                </select>
+                <input type="number" id="pagesRead" placeholder="Pages Read" 
+                    class="w-full p-2 border rounded">
+                <textarea id="readingNotes" placeholder="Notes..." 
+                    class="w-full p-2 border rounded h-32"></textarea>
+                <button id="addLogBtn" class="bg-purple-500 text-white px-6 py-2 rounded hover:bg-purple-600">
+                    Add Log Entry
+                </button>
+            </div>
+        </div>
+
+        <!-- Book List -->
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-2xl font-semibold mb-4">Book List</h2>
+            <div id="bookList" class="space-y-4"></div>
+        </div>
+    </div>
+
+    <script>
+        let web3;
+        let contract;
+        let userAccount;
+        
+        // Contract ABI - Replace with your contract's ABI
+        const contractABI = [
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "title",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "author",
+				"type": "string"
+			}
+		],
+		"name": "addBook",
+		"outputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "bookId",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "uint256",
+				"name": "pagesRead",
+				"type": "uint256"
+			},
+			{
+				"internalType": "string",
+				"name": "notes",
+				"type": "string"
+			}
+		],
+		"name": "addReadingLog",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "bookId",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "uint256",
+				"name": "rating",
+				"type": "uint256"
+			},
+			{
+				"internalType": "string",
+				"name": "comment",
+				"type": "string"
+			}
+		],
+		"name": "addReview",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "bytes32",
+				"name": "bookId",
+				"type": "bytes32"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "title",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "author",
+				"type": "string"
+			}
+		],
+		"name": "BookAdded",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "bytes32",
+				"name": "bookId",
+				"type": "bytes32"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "reader",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "pagesRead",
+				"type": "uint256"
+			}
+		],
+		"name": "LogAdded",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "bytes32",
+				"name": "bookId",
+				"type": "bytes32"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "reviewer",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "rating",
+				"type": "uint256"
+			}
+		],
+		"name": "ReviewAdded",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "bookList",
+		"outputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "bookReviews",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "reviewer",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "rating",
+				"type": "uint256"
+			},
+			{
+				"internalType": "string",
+				"name": "comment",
+				"type": "string"
+			},
+			{
+				"internalType": "uint256",
+				"name": "timestamp",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"name": "books",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "title",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "author",
+				"type": "string"
+			},
+			{
+				"internalType": "uint256",
+				"name": "totalReviews",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "totalRating",
+				"type": "uint256"
+			},
+			{
+				"internalType": "bool",
+				"name": "exists",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getAllBooks",
+		"outputs": [
+			{
+				"internalType": "bytes32[]",
+				"name": "",
+				"type": "bytes32[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "bookId",
+				"type": "bytes32"
+			}
+		],
+		"name": "getBookAverageRating",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "bookId",
+				"type": "bytes32"
+			}
+		],
+		"name": "getBookDetails",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "title",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "author",
+				"type": "string"
+			},
+			{
+				"internalType": "uint256",
+				"name": "totalReviews",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "bookId",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "address",
+				"name": "reader",
+				"type": "address"
+			}
+		],
+		"name": "getReadingLogs",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "uint256",
+						"name": "pagesRead",
+						"type": "uint256"
+					},
+					{
+						"internalType": "string",
+						"name": "notes",
+						"type": "string"
+					},
+					{
+						"internalType": "uint256",
+						"name": "timestamp",
+						"type": "uint256"
+					}
+				],
+				"internalType": "struct BookClubTracker.ReadingLog[]",
+				"name": "",
+				"type": "tuple[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "readingLogs",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "pagesRead",
+				"type": "uint256"
+			},
+			{
+				"internalType": "string",
+				"name": "notes",
+				"type": "string"
+			},
+			{
+				"internalType": "uint256",
+				"name": "timestamp",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+];
+        const contractAddress = "0x44A85B92a42126B762d23B122bdf849a30606B80";
+
+        async function init() {
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    web3 = new Web3(window.ethereum);
+                    contract = new web3.eth.Contract(contractABI, contractAddress);
+                    
+                    document.getElementById('connectWallet').addEventListener('click', connectWallet);
+                    document.getElementById('addBookBtn').addEventListener('click', addBook);
+                    document.getElementById('addReviewBtn').addEventListener('click', addReview);
+                    document.getElementById('addLogBtn').addEventListener('click', addReadingLog);
+                    
+                    await loadBooks();
+                } catch (error) {
+                    console.error('Error initializing Web3:', error);
+                }
+            } else {
+                alert('Please install MetaMask to use this dApp!');
+            }
+        }
+
+        async function connectWallet() {
+            try {
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                userAccount = accounts[0];
+                document.getElementById('walletAddress').textContent = `Connected: ${userAccount.substring(0, 6)}...${userAccount.substring(38)}`;
+            } catch (error) {
+                console.error('Error connecting wallet:', error);
+            }
+        }
+
+        async function addBook() {
+            if (!userAccount) {
+                alert('Please connect your wallet first!');
+                return;
+            }
+
+            const title = document.getElementById('bookTitle').value;
+            const author = document.getElementById('bookAuthor').value;
+
+            try {
+                await contract.methods.addBook(title, author).send({ from: userAccount });
+                alert('Book added successfully!');
+                await loadBooks();
+            } catch (error) {
+                console.error('Error adding book:', error);
+            }
+        }
+
+        async function addReview() {
+            if (!userAccount) {
+                alert('Please connect your wallet first!');
+                return;
+            }
+
+            const bookId = document.getElementById('bookSelect').value;
+            const rating = document.getElementById('rating').value;
+            const comment = document.getElementById('reviewComment').value;
+
+            try {
+                await contract.methods.addReview(bookId, rating, comment).send({ from: userAccount });
+                alert('Review added successfully!');
+            } catch (error) {
+                console.error('Error adding review:', error);
+            }
+        }
+
+        async function addReadingLog() {
+            if (!userAccount) {
+                alert('Please connect your wallet first!');
+                return;
+            }
+
+            const bookId = document.getElementById('logBookSelect').value;
+            const pagesRead = document.getElementById('pagesRead').value;
+            const notes = document.getElementById('readingNotes').value;
+
+            try {
+                await contract.methods.addReadingLog(bookId, pagesRead, notes).send({ from: userAccount });
+                alert('Reading log added successfully!');
+            } catch (error) {
+                console.error('Error adding reading log:', error);
+            }
+        }
+
+        async function loadBooks() {
+            try {
+                const books = await contract.methods.getAllBooks().call();
+                const bookList = document.getElementById('bookList');
+                const bookSelect = document.getElementById('bookSelect');
+                const logBookSelect = document.getElementById('logBookSelect');
+
+                bookList.innerHTML = '';
+                bookSelect.innerHTML = '<option value="">Select a book</option>';
+                logBookSelect.innerHTML = '<option value="">Select a book</option>';
+
+                for (const bookId of books) {
+                    const details = await contract.methods.getBookDetails(bookId).call();
+                    const rating = await contract.methods.getBookAverageRating(bookId).call();
+
+                    // Add to book list
+                    const bookElement = document.createElement('div');
+                    bookElement.className = 'p-4 border rounded';
+                    bookElement.innerHTML = `
+                        <h3 class="text-xl font-semibold">${details.title}</h3>
+                        <p class="text-gray-600">By ${details.author}</p>
+                        <p class="text-gray-600">Average Rating: ${rating}/5 (${details.totalReviews} reviews)</p>
+                    `;
+                    bookList.appendChild(bookElement);
+
+                    // Add to select dropdowns
+                    const option = document.createElement('option');
+                    option.value = bookId;
+                    option.textContent = details.title;
+                    bookSelect.appendChild(option.cloneNode(true));
+                    logBookSelect.appendChild(option.cloneNode(true));
+                }
+            } catch (error) {
+                console.error('Error loading books:', error);
+            }
+        }
+
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
