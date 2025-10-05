@@ -183,4 +183,4 @@ Common issues and solutions:
 
 ## License
 
-This project is licensed under the MIT License..
+This project is licensed under the MIT License...
