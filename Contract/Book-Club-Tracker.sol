@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 /**
  * @title Book Club Tracker DApp
- * @notice A decentralized platform for managing book clubs — tracking members, reading lists, and shared reviews on-chain.
+ * @notice A decentralized platform for managing book clubs ? tracking members, reading lists, and shared reviews on-chain.
  * @dev This DApp promotes transparency and engagement by storing reading activity and feedback immutably on the blockchain.
  */
 contract Project {
@@ -137,4 +137,6 @@ contract Project {
         admin = _newAdmin;
     }
 }
-
+// 
+End
+// 
