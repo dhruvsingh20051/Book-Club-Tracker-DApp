@@ -1,18 +1,7 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
-
-/**
- * @title GasLess Trade
- * @dev A smart contract enabling gasless trading through meta-transactions and EIP-712 signatures
- */
-contract GasLessTrade {
-    
-    // State variables
+State variables
     address public owner;
     uint256 public tradeCount;
-    uint256 public feePercentage; // Fee in basis points (100 = 1%)
-    
-    // Structs
+    uint256 public feePercentage; Structs
     struct Trade {
         address seller;
         address buyer;
@@ -27,13 +16,7 @@ contract GasLessTrade {
         bytes functionSignature;
     }
     
-    // Mappings
-    mapping(uint256 => Trade) public trades;
-    mapping(address => uint256) public balances;
-    mapping(address => uint256) public nonces;
-    mapping(address => bool) public authorizedRelayers;
-    
-    // Events
+    Events
     event TradeCreated(uint256 indexed tradeId, address indexed seller, address indexed buyer, uint256 amount);
     event TradeCompleted(uint256 indexed tradeId);
     event Deposit(address indexed user, uint256 amount);
@@ -42,18 +25,7 @@ contract GasLessTrade {
     event RelayerRevoked(address indexed relayer);
     event MetaTransactionExecuted(address indexed user, address indexed relayer, bytes functionSignature);
     
-    // Modifiers
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Only owner can call this function");
-        _;
-    }
-    
-    modifier onlyAuthorizedRelayer() {
-        require(authorizedRelayers[msg.sender], "Only authorized relayers can call this function");
-        _;
-    }
-    
-    // Constructor
+    Constructor
     constructor(uint256 _feePercentage) {
         owner = msg.sender;
         feePercentage = _feePercentage;
@@ -224,3 +196,6 @@ contract GasLessTrade {
         return nonces[user];
     }
 }
+// 
+End
+// 
